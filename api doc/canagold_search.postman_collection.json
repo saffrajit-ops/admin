@@ -1,0 +1,574 @@
+{
+  "info": {
+    "name": "CanaGold - Search",
+    "description": "Module for Search endpoints from CanaGold Auth API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "taxonomyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stripeSessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cartItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "wishlistItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "blogPostId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-refresh access token if needed",
+          "const accessToken = pm.collectionVariables.get('accessToken');",
+          "const refreshToken = pm.collectionVariables.get('refreshToken');",
+          "",
+          "// Function to refresh token",
+          "function refreshAccessToken() {",
+          "    if (!refreshToken) {",
+          "        console.log('No refresh token available. Please login first.');",
+          "        return;",
+          "    }",
+          "    ",
+          "    const refreshRequest = {",
+          "        url: pm.collectionVariables.get('baseUrl') + '/auth/refresh',",
+          "        method: 'POST',",
+          "        header: {",
+          "            'Content-Type': 'application/json'",
+          "        },",
+          "        body: {",
+          "            mode: 'raw',",
+          "            raw: JSON.stringify({",
+          "                refreshToken: refreshToken",
+          "            })",
+          "        }",
+          "    };",
+          "    ",
+          "    pm.sendRequest(refreshRequest, (err, response) => {",
+          "        if (err) {",
+          "            console.log('Error refreshing token:', err);",
+          "        } else if (response.code === 200) {",
+          "            const responseJson = response.json();",
+          "            if (responseJson.success && responseJson.data.accessToken) {",
+          "                pm.collectionVariables.set('accessToken', responseJson.data.accessToken);",
+          "                console.log('Access token refreshed successfully');",
+          "            }",
+          "        } else {",
+          "            console.log('Failed to refresh token. Please login again.');",
+          "        }",
+          "    });",
+          "}",
+          "",
+          "// Check if we need to refresh token (if request requires auth and no token)",
+          "const requestUrl = pm.request.url.toString();",
+          "const requiresAuth = requestUrl.includes('/admin/') || ",
+          "                    pm.request.headers.has('Authorization');",
+          "",
+          "if (requiresAuth && (!accessToken || accessToken === '')) {",
+          "    console.log('Request requires authentication but no access token found. Attempting to refresh...');",
+          "    refreshAccessToken();",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Search Functionality",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Search endpoints - some require authentication",
+              "const accessToken = pm.collectionVariables.get('accessToken');",
+              "if (accessToken && accessToken !== '') {",
+              "    console.log('\u2139\ufe0f Search endpoints with authentication - full features available');",
+              "} else {",
+              "    console.log('\u2139\ufe0f Search endpoints - public search available, admin search requires login');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "User Product Search",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Optional authentication for enhanced features",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (accessToken && accessToken !== '') {",
+                  "    pm.request.headers.add({",
+                  "        key: 'Authorization',",
+                  "        value: 'Bearer ' + accessToken",
+                  "    });",
+                  "    console.log('\u2139\ufe0f Using authentication for enhanced search features');",
+                  "} else {",
+                  "    console.log('\u2139\ufe0f Running as public search (no authentication)');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Search response is successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has search results structure', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('success', true);",
+                  "    pm.expect(responseJson.data).to.have.property('products');",
+                  "    pm.expect(responseJson.data).to.have.property('searchQuery');",
+                  "    pm.expect(responseJson.data).to.have.property('pagination');",
+                  "});",
+                  "",
+                  "pm.test('Products array is present', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.data.products).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Pagination info is complete', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    const pagination = responseJson.data.pagination;",
+                  "    pm.expect(pagination).to.have.property('currentPage');",
+                  "    pm.expect(pagination).to.have.property('totalPages');",
+                  "    pm.expect(pagination).to.have.property('totalProducts');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/search?q=wireless headphones&page=1&limit=12&inStock=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "wireless headphones",
+                  "description": "Search query (required)"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "12"
+                },
+                {
+                  "key": "sort",
+                  "value": "-createdAt",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by category ID"
+                },
+                {
+                  "key": "minPrice",
+                  "value": "50",
+                  "disabled": true,
+                  "description": "Minimum price filter"
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "200",
+                  "disabled": true,
+                  "description": "Maximum price filter"
+                },
+                {
+                  "key": "inStock",
+                  "value": "true",
+                  "description": "Filter for in-stock items only"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Product Search",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token for admin search",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin search response is successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Admin search has proper structure', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('success', true);",
+                  "    pm.expect(responseJson.data).to.have.property('products');",
+                  "    pm.expect(responseJson.data).to.have.property('searchQuery');",
+                  "});",
+                  "",
+                  "pm.test('Admin can see all product statuses', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    // Admin search should include products regardless of active status",
+                  "    pm.expect(responseJson.data.products).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/products/search?q=premium skincare&status=active&page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "products",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "premium skincare",
+                  "description": "Search query (required)"
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "description": "Filter by status: active, inactive, all"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "sort",
+                  "value": "-createdAt",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by category ID"
+                },
+                {
+                  "key": "type",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by product type"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Order Search",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token for admin search",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order search response is successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Order search has proper structure', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('success', true);",
+                  "    pm.expect(responseJson.data).to.have.property('orders');",
+                  "    pm.expect(responseJson.data).to.have.property('searchQuery');",
+                  "    pm.expect(responseJson.data).to.have.property('pagination');",
+                  "});",
+                  "",
+                  "pm.test('Orders array is present', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.data.orders).to.be.an('array');",
+                  "});",
+                  "",
+                  "if (pm.response.json().data.orders.length > 0) {",
+                  "    pm.test('Order has required fields', function () {",
+                  "        const order = pm.response.json().data.orders[0];",
+                  "        pm.expect(order).to.have.property('_id');",
+                  "        pm.expect(order).to.have.property('status');",
+                  "        pm.expect(order).to.have.property('user');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/admin/orders/search?q=john.doe@example.com&status=pending&page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "admin",
+                "orders",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "john.doe@example.com",
+                  "description": "Search by customer email, name, order number, or tracking number"
+                },
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "description": "Filter by order status"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "startDate",
+                  "value": "2024-01-01",
+                  "disabled": true,
+                  "description": "Filter orders from this date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2024-12-31",
+                  "disabled": true,
+                  "description": "Filter orders until this date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "sort",
+                  "value": "-createdAt",
+                  "disabled": true,
+                  "description": "Sort order"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search by Order Number",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token for admin search",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/admin/orders/search?q=ORD-2024-001&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "admin",
+                "orders",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "ORD-2024-001",
+                  "description": "Search by order number"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search by Tracking Number",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token for admin search",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/admin/orders/search?q=TRK123456789&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "admin",
+                "orders",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "TRK123456789",
+                  "description": "Search by tracking number"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

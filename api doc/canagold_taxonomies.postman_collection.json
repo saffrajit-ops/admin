@@ -1,0 +1,408 @@
+{
+  "info": {
+    "name": "CanaGold - Taxonomies",
+    "description": "Module for Taxonomies endpoints from CanaGold Auth API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "taxonomyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stripeSessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cartItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "wishlistItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "blogPostId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-refresh access token if needed",
+          "const accessToken = pm.collectionVariables.get('accessToken');",
+          "const refreshToken = pm.collectionVariables.get('refreshToken');",
+          "",
+          "// Function to refresh token",
+          "function refreshAccessToken() {",
+          "    if (!refreshToken) {",
+          "        console.log('No refresh token available. Please login first.');",
+          "        return;",
+          "    }",
+          "    ",
+          "    const refreshRequest = {",
+          "        url: pm.collectionVariables.get('baseUrl') + '/auth/refresh',",
+          "        method: 'POST',",
+          "        header: {",
+          "            'Content-Type': 'application/json'",
+          "        },",
+          "        body: {",
+          "            mode: 'raw',",
+          "            raw: JSON.stringify({",
+          "                refreshToken: refreshToken",
+          "            })",
+          "        }",
+          "    };",
+          "    ",
+          "    pm.sendRequest(refreshRequest, (err, response) => {",
+          "        if (err) {",
+          "            console.log('Error refreshing token:', err);",
+          "        } else if (response.code === 200) {",
+          "            const responseJson = response.json();",
+          "            if (responseJson.success && responseJson.data.accessToken) {",
+          "                pm.collectionVariables.set('accessToken', responseJson.data.accessToken);",
+          "                console.log('Access token refreshed successfully');",
+          "            }",
+          "        } else {",
+          "            console.log('Failed to refresh token. Please login again.');",
+          "        }",
+          "    });",
+          "}",
+          "",
+          "// Check if we need to refresh token (if request requires auth and no token)",
+          "const requestUrl = pm.request.url.toString();",
+          "const requiresAuth = requestUrl.includes('/admin/') || ",
+          "                    pm.request.headers.has('Authorization');",
+          "",
+          "if (requiresAuth && (!accessToken || accessToken === '')) {",
+          "    console.log('Request requires authentication but no access token found. Attempting to refresh...');",
+          "    refreshAccessToken();",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Taxonomies (Public)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Public routes - authentication is optional for enhanced features",
+              "const accessToken = pm.collectionVariables.get('accessToken');",
+              "if (accessToken && accessToken !== '') {",
+              "    console.log('\u2139\ufe0f Public endpoints with optional authentication - enhanced features available');",
+              "} else {",
+              "    console.log('\u2139\ufe0f Public endpoints - no authentication (basic features only)');",
+              "    console.log('\ud83d\udca1 Tip: Login first to access enhanced features like user-specific data');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Get All Taxonomies",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Optional authentication for enhanced features",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (accessToken && accessToken !== '') {",
+                  "    pm.request.headers.add({",
+                  "        key: 'Authorization',",
+                  "        value: 'Bearer ' + accessToken",
+                  "    });",
+                  "    console.log('\u2139\ufe0f Using authentication for enhanced features');",
+                  "} else {",
+                  "    console.log('\u2139\ufe0f Running as public request (no authentication)');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/taxonomies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "taxonomies"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "parentId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "includeChildren",
+                  "value": "false",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Taxonomy Tree",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Optional authentication for enhanced features",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (accessToken && accessToken !== '') {",
+                  "    pm.request.headers.add({",
+                  "        key: 'Authorization',",
+                  "        value: 'Bearer ' + accessToken",
+                  "    });",
+                  "    console.log('\u2139\ufe0f Using authentication for enhanced features');",
+                  "} else {",
+                  "    console.log('\u2139\ufe0f Running as public request (no authentication)');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/taxonomies/tree",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "taxonomies",
+                "tree"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Taxonomies by Type",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Optional authentication for enhanced features",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (accessToken && accessToken !== '') {",
+                  "    pm.request.headers.add({",
+                  "        key: 'Authorization',",
+                  "        value: 'Bearer ' + accessToken",
+                  "    });",
+                  "    console.log('\u2139\ufe0f Using authentication for enhanced features');",
+                  "} else {",
+                  "    console.log('\u2139\ufe0f Running as public request (no authentication)');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/taxonomies/type/category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "taxonomies",
+                "type",
+                "category"
+              ],
+              "query": [
+                {
+                  "key": "includeChildren",
+                  "value": "false",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Taxonomy by ID",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Optional authentication for enhanced features",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (accessToken && accessToken !== '') {",
+                  "    pm.request.headers.add({",
+                  "        key: 'Authorization',",
+                  "        value: 'Bearer ' + accessToken",
+                  "    });",
+                  "    console.log('\u2139\ufe0f Using authentication for enhanced features');",
+                  "} else {",
+                  "    console.log('\u2139\ufe0f Running as public request (no authentication)');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data._id) {",
+                  "        pm.collectionVariables.set('taxonomyId', response.data._id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/taxonomies/id/{{taxonomyId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "taxonomies",
+                "id",
+                "{{taxonomyId}}"
+              ],
+              "query": [
+                {
+                  "key": "includeChildren",
+                  "value": "false",
+                  "disabled": true
+                },
+                {
+                  "key": "includeProducts",
+                  "value": "false",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Taxonomy by Slug",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Optional authentication for enhanced features",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (accessToken && accessToken !== '') {",
+                  "    pm.request.headers.add({",
+                  "        key: 'Authorization',",
+                  "        value: 'Bearer ' + accessToken",
+                  "    });",
+                  "    console.log('\u2139\ufe0f Using authentication for enhanced features');",
+                  "} else {",
+                  "    console.log('\u2139\ufe0f Running as public request (no authentication)');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/taxonomies/slug/skincare",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "taxonomies",
+                "slug",
+                "skincare"
+              ],
+              "query": [
+                {
+                  "key": "includeChildren",
+                  "value": "false",
+                  "disabled": true
+                },
+                {
+                  "key": "includeProducts",
+                  "value": "false",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

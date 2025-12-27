@@ -1,0 +1,707 @@
+{
+  "info": {
+    "name": "CanaGold - Reviews",
+    "description": "Module for Reviews endpoints from CanaGold Auth API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "taxonomyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stripeSessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cartItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "wishlistItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "blogPostId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-refresh access token if needed",
+          "const accessToken = pm.collectionVariables.get('accessToken');",
+          "const refreshToken = pm.collectionVariables.get('refreshToken');",
+          "",
+          "// Function to refresh token",
+          "function refreshAccessToken() {",
+          "    if (!refreshToken) {",
+          "        console.log('No refresh token available. Please login first.');",
+          "        return;",
+          "    }",
+          "    ",
+          "    const refreshRequest = {",
+          "        url: pm.collectionVariables.get('baseUrl') + '/auth/refresh',",
+          "        method: 'POST',",
+          "        header: {",
+          "            'Content-Type': 'application/json'",
+          "        },",
+          "        body: {",
+          "            mode: 'raw',",
+          "            raw: JSON.stringify({",
+          "                refreshToken: refreshToken",
+          "            })",
+          "        }",
+          "    };",
+          "    ",
+          "    pm.sendRequest(refreshRequest, (err, response) => {",
+          "        if (err) {",
+          "            console.log('Error refreshing token:', err);",
+          "        } else if (response.code === 200) {",
+          "            const responseJson = response.json();",
+          "            if (responseJson.success && responseJson.data.accessToken) {",
+          "                pm.collectionVariables.set('accessToken', responseJson.data.accessToken);",
+          "                console.log('Access token refreshed successfully');",
+          "            }",
+          "        } else {",
+          "            console.log('Failed to refresh token. Please login again.');",
+          "        }",
+          "    });",
+          "}",
+          "",
+          "// Check if we need to refresh token (if request requires auth and no token)",
+          "const requestUrl = pm.request.url.toString();",
+          "const requiresAuth = requestUrl.includes('/admin/') || ",
+          "                    pm.request.headers.has('Authorization');",
+          "",
+          "if (requiresAuth && (!accessToken || accessToken === '')) {",
+          "    console.log('Request requires authentication but no access token found. Attempting to refresh...');",
+          "    refreshAccessToken();",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Reviews (Public & Authenticated)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Mixed routes - some public, some require authentication",
+              "const accessToken = pm.collectionVariables.get('accessToken');",
+              "const requestUrl = pm.request.url.toString();",
+              "",
+              "// Check if this is a write operation that requires authentication",
+              "const requiresAuth = pm.request.method !== 'GET' || requestUrl.includes('/user/');",
+              "",
+              "if (requiresAuth) {",
+              "    if (accessToken && accessToken !== '') {",
+              "        console.log('\u2139\ufe0f Authenticated request - full features available');",
+              "    } else {",
+              "        console.log('\u26a0\ufe0f This operation requires authentication. Please login first.');",
+              "    }",
+              "} else {",
+              "    console.log('\u2139\ufe0f Public endpoint - no authentication required');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Get Reviews by Product",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Public endpoint - no authentication required",
+                  "console.log('\u2139\ufe0f Public endpoint - fetching product reviews');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reviews/product/{{productId}}?page=1&limit=10&sort=-createdAt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews",
+                "product",
+                "{{productId}}"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sort",
+                  "value": "-createdAt"
+                },
+                {
+                  "key": "rating",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "verifiedOnly",
+                  "value": "true",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Reviews by User",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Public endpoint - no authentication required",
+                  "console.log('\u2139\ufe0f Public endpoint - fetching user reviews');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reviews/user/{{userId}}?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews",
+                "user",
+                "{{userId}}"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sort",
+                  "value": "-createdAt",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Review by ID",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Public endpoint - no authentication required",
+                  "console.log('\u2139\ufe0f Public endpoint - fetching single review');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data._id) {",
+                  "        pm.collectionVariables.set('reviewId', response.data._id);",
+                  "        // Set commentId if comments exist",
+                  "        if (response.data.comments && response.data.comments.length > 0) {",
+                  "            pm.collectionVariables.set('commentId', response.data.comments[0]._id);",
+                  "        }",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reviews/{{reviewId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews",
+                "{{reviewId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Review",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const productId = pm.collectionVariables.get('productId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!productId || productId === '') {",
+                  "    console.log('\u26a0\ufe0f No product ID found. Please set productId variable or get a product first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data._id) {",
+                  "        pm.collectionVariables.set('reviewId', response.data._id);",
+                  "        console.log('\u2705 Review created successfully. ID saved:', response.data._id);",
+                  "    }",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 409) {",
+                  "    console.log('\u274c You have already reviewed this product.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"rating\": 5,\n  \"title\": \"Amazing product!\",\n  \"comment\": \"This product exceeded my expectations. The quality is outstanding and I can see visible results after just a few weeks of use. Highly recommended for anyone looking for premium skincare.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Review",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token and review ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const reviewId = pm.collectionVariables.get('reviewId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!reviewId || reviewId === '') {",
+                  "    console.log('\u26a0\ufe0f No review ID found. Please create a review first or set reviewId variable.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Review updated successfully');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 403) {",
+                  "    console.log('\u274c Forbidden. You can only update your own reviews.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Review not found. Please check the review ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"title\": \"Updated: Great product with minor improvements needed\",\n  \"comment\": \"After using this product for a longer period, I still think it's great but there are some minor areas for improvement. Overall, I'm satisfied with my purchase and would recommend it to others.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reviews/{{reviewId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews",
+                "{{reviewId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Review",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token and review ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const reviewId = pm.collectionVariables.get('reviewId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!reviewId || reviewId === '') {",
+                  "    console.log('\u26a0\ufe0f No review ID found. Please create a review first or set reviewId variable.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Review deleted successfully');",
+                  "    // Clear the review ID since it's deleted",
+                  "    pm.collectionVariables.set('reviewId', '');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 403) {",
+                  "    console.log('\u274c Forbidden. You can only delete your own reviews.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Review not found. Please check the review ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reviews/{{reviewId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews",
+                "{{reviewId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Comment to Review",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token and review ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const reviewId = pm.collectionVariables.get('reviewId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!reviewId || reviewId === '') {",
+                  "    console.log('\u26a0\ufe0f No review ID found. Please create a review first or set reviewId variable.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data.comments && response.data.comments.length > 0) {",
+                  "        const lastComment = response.data.comments[response.data.comments.length - 1];",
+                  "        pm.collectionVariables.set('commentId', lastComment._id);",
+                  "        console.log('\u2705 Comment added successfully. ID saved:', lastComment._id);",
+                  "    }",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Review not found. Please check the review ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"Thank you for this detailed review! It really helped me make my decision.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reviews/{{reviewId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews",
+                "{{reviewId}}",
+                "comments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reply to Comment",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token, review ID, and comment ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const reviewId = pm.collectionVariables.get('reviewId');",
+                  "const commentId = pm.collectionVariables.get('commentId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!reviewId || reviewId === '') {",
+                  "    console.log('\u26a0\ufe0f No review ID found. Please create a review first or set reviewId variable.');",
+                  "}",
+                  "",
+                  "if (!commentId || commentId === '') {",
+                  "    console.log('\u26a0\ufe0f No comment ID found. Please add a comment first or set commentId variable.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    console.log('\u2705 Reply added successfully');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Review or parent comment not found. Please check the IDs.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"You're welcome! I'm glad my review was helpful. Feel free to ask if you have any other questions.\",\n  \"parentCommentId\": \"{{commentId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reviews/{{reviewId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews",
+                "{{reviewId}}",
+                "comments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Comment",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token, review ID, and comment ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const reviewId = pm.collectionVariables.get('reviewId');",
+                  "const commentId = pm.collectionVariables.get('commentId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!reviewId || reviewId === '') {",
+                  "    console.log('\u26a0\ufe0f No review ID found. Please create a review first or set reviewId variable.');",
+                  "}",
+                  "",
+                  "if (!commentId || commentId === '') {",
+                  "    console.log('\u26a0\ufe0f No comment ID found. Please add a comment first or set commentId variable.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Comment deleted successfully');",
+                  "    // Clear the comment ID since it's deleted",
+                  "    pm.collectionVariables.set('commentId', '');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 403) {",
+                  "    console.log('\u274c Forbidden. You can only delete your own comments.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Review or comment not found. Please check the IDs.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reviews/{{reviewId}}/comments/{{commentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews",
+                "{{reviewId}}",
+                "comments",
+                "{{commentId}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

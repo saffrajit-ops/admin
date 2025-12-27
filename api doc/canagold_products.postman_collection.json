@@ -1,0 +1,557 @@
+{
+  "info": {
+    "name": "CanaGold - Products",
+    "description": "Module for Products endpoints from CanaGold Auth API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "taxonomyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stripeSessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cartItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "wishlistItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "blogPostId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-refresh access token if needed",
+          "const accessToken = pm.collectionVariables.get('accessToken');",
+          "const refreshToken = pm.collectionVariables.get('refreshToken');",
+          "",
+          "// Function to refresh token",
+          "function refreshAccessToken() {",
+          "    if (!refreshToken) {",
+          "        console.log('No refresh token available. Please login first.');",
+          "        return;",
+          "    }",
+          "    ",
+          "    const refreshRequest = {",
+          "        url: pm.collectionVariables.get('baseUrl') + '/auth/refresh',",
+          "        method: 'POST',",
+          "        header: {",
+          "            'Content-Type': 'application/json'",
+          "        },",
+          "        body: {",
+          "            mode: 'raw',",
+          "            raw: JSON.stringify({",
+          "                refreshToken: refreshToken",
+          "            })",
+          "        }",
+          "    };",
+          "    ",
+          "    pm.sendRequest(refreshRequest, (err, response) => {",
+          "        if (err) {",
+          "            console.log('Error refreshing token:', err);",
+          "        } else if (response.code === 200) {",
+          "            const responseJson = response.json();",
+          "            if (responseJson.success && responseJson.data.accessToken) {",
+          "                pm.collectionVariables.set('accessToken', responseJson.data.accessToken);",
+          "                console.log('Access token refreshed successfully');",
+          "            }",
+          "        } else {",
+          "            console.log('Failed to refresh token. Please login again.');",
+          "        }",
+          "    });",
+          "}",
+          "",
+          "// Check if we need to refresh token (if request requires auth and no token)",
+          "const requestUrl = pm.request.url.toString();",
+          "const requiresAuth = requestUrl.includes('/admin/') || ",
+          "                    pm.request.headers.has('Authorization');",
+          "",
+          "if (requiresAuth && (!accessToken || accessToken === '')) {",
+          "    console.log('Request requires authentication but no access token found. Attempting to refresh...');",
+          "    refreshAccessToken();",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Products (Public)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Public routes - authentication is optional for enhanced features",
+              "const accessToken = pm.collectionVariables.get('accessToken');",
+              "if (accessToken && accessToken !== '') {",
+              "    console.log('\u2139\ufe0f Public endpoints with optional authentication - enhanced features available');",
+              "} else {",
+              "    console.log('\u2139\ufe0f Public endpoints - no authentication (basic features only)');",
+              "    console.log('\ud83d\udca1 Tip: Login first to access enhanced features like personalized recommendations');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Get All Products",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Optional authentication for enhanced features",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (accessToken && accessToken !== '') {",
+                  "    pm.request.headers.add({",
+                  "        key: 'Authorization',",
+                  "        value: 'Bearer ' + accessToken",
+                  "    });",
+                  "    console.log('\u2139\ufe0f Using authentication for enhanced features');",
+                  "} else {",
+                  "    console.log('\u2139\ufe0f Running as public request (no authentication)');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products?page=1&limit=12&sort=-createdAt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "12"
+                },
+                {
+                  "key": "sort",
+                  "value": "-createdAt"
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "minPrice",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "inStock",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "featured",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "brand",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product by ID",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Optional authentication for enhanced features",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (accessToken && accessToken !== '') {",
+                  "    pm.request.headers.add({",
+                  "        key: 'Authorization',",
+                  "        value: 'Bearer ' + accessToken",
+                  "    });",
+                  "    console.log('\u2139\ufe0f Using authentication for enhanced features');",
+                  "} else {",
+                  "    console.log('\u2139\ufe0f Running as public request (no authentication)');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data._id) {",
+                  "        pm.collectionVariables.set('productId', response.data._id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/id/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "id",
+                "{{productId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product by Slug",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Optional authentication for enhanced features",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (accessToken && accessToken !== '') {",
+                  "    pm.request.headers.add({",
+                  "        key: 'Authorization',",
+                  "        value: 'Bearer ' + accessToken",
+                  "    });",
+                  "    console.log('\u2139\ufe0f Using authentication for enhanced features');",
+                  "} else {",
+                  "    console.log('\u2139\ufe0f Running as public request (no authentication)');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/slug/sample-product",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "slug",
+                "sample-product"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Products by Category",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Optional authentication for enhanced features",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (accessToken && accessToken !== '') {",
+                  "    pm.request.headers.add({",
+                  "        key: 'Authorization',",
+                  "        value: 'Bearer ' + accessToken",
+                  "    });",
+                  "    console.log('\u2139\ufe0f Using authentication for enhanced features');",
+                  "} else {",
+                  "    console.log('\u2139\ufe0f Running as public request (no authentication)');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/category/{{taxonomyId}}?page=1&limit=12",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "category",
+                "{{taxonomyId}}"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "12"
+                },
+                {
+                  "key": "sort",
+                  "value": "-createdAt",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Products",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Optional authentication for enhanced features",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (accessToken && accessToken !== '') {",
+                  "    pm.request.headers.add({",
+                  "        key: 'Authorization',",
+                  "        value: 'Bearer ' + accessToken",
+                  "    });",
+                  "    console.log('\u2139\ufe0f Using authentication for enhanced features');",
+                  "} else {",
+                  "    console.log('\u2139\ufe0f Running as public request (no authentication)');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/search?q=face cream&page=1&limit=12",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "face cream",
+                  "description": "Search query (required)"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "12"
+                },
+                {
+                  "key": "sort",
+                  "value": "-createdAt",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by category ID"
+                },
+                {
+                  "key": "minPrice",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Minimum price filter"
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Maximum price filter"
+                },
+                {
+                  "key": "inStock",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter for in-stock items (true)"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Similar Products",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Optional authentication for enhanced features",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (accessToken && accessToken !== '') {",
+                  "    pm.request.headers.add({",
+                  "        key: 'Authorization',",
+                  "        value: 'Bearer ' + accessToken",
+                  "    });",
+                  "    console.log('\u2139\ufe0f Using authentication for enhanced features');",
+                  "} else {",
+                  "    console.log('\u2139\ufe0f Running as public request (no authentication)');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId}}/similar?limit=4",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{productId}}",
+                "similar"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "4"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Validate Coupon (Cart)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data.code) {",
+                  "        console.log('\u2705 Coupon is valid');",
+                  "        console.log('\ud83d\udcb0 Discount:', response.data.discount);",
+                  "        console.log('\ud83d\udcb5 Final Amount:', response.data.finalAmount);",
+                  "    }",
+                  "} else {",
+                  "    const response = pm.response.json();",
+                  "    console.log('\u274c Coupon validation failed:', response.message);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"SAVE20\",\n  \"subtotal\": 100.00,\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"taxonomies\": [\"{{taxonomyId}}\"]\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products/validate-coupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "validate-coupon"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

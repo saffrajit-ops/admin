@@ -1,0 +1,3900 @@
+{
+  "info": {
+    "name": "CanaGold - Commerce Extras",
+    "description": "Module for Commerce Extras endpoints from CanaGold Auth API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "taxonomyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stripeSessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cartItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "wishlistItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "blogPostId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-refresh access token if needed",
+          "const accessToken = pm.collectionVariables.get('accessToken');",
+          "const refreshToken = pm.collectionVariables.get('refreshToken');",
+          "",
+          "// Function to refresh token",
+          "function refreshAccessToken() {",
+          "    if (!refreshToken) {",
+          "        console.log('No refresh token available. Please login first.');",
+          "        return;",
+          "    }",
+          "    ",
+          "    const refreshRequest = {",
+          "        url: pm.collectionVariables.get('baseUrl') + '/auth/refresh',",
+          "        method: 'POST',",
+          "        header: {",
+          "            'Content-Type': 'application/json'",
+          "        },",
+          "        body: {",
+          "            mode: 'raw',",
+          "            raw: JSON.stringify({",
+          "                refreshToken: refreshToken",
+          "            })",
+          "        }",
+          "    };",
+          "    ",
+          "    pm.sendRequest(refreshRequest, (err, response) => {",
+          "        if (err) {",
+          "            console.log('Error refreshing token:', err);",
+          "        } else if (response.code === 200) {",
+          "            const responseJson = response.json();",
+          "            if (responseJson.success && responseJson.data.accessToken) {",
+          "                pm.collectionVariables.set('accessToken', responseJson.data.accessToken);",
+          "                console.log('Access token refreshed successfully');",
+          "            }",
+          "        } else {",
+          "            console.log('Failed to refresh token. Please login again.');",
+          "        }",
+          "    });",
+          "}",
+          "",
+          "// Check if we need to refresh token (if request requires auth and no token)",
+          "const requestUrl = pm.request.url.toString();",
+          "const requiresAuth = requestUrl.includes('/admin/') || ",
+          "                    pm.request.headers.has('Authorization');",
+          "",
+          "if (requiresAuth && (!accessToken || accessToken === '')) {",
+          "    console.log('Request requires authentication but no access token found. Attempting to refresh...');",
+          "    refreshAccessToken();",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Cart (Authenticated)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Coupon management - public validation, admin management",
+              "const accessToken = pm.collectionVariables.get('accessToken');",
+              "if (accessToken && accessToken !== '') {",
+              "    console.log('\u2139\ufe0f Coupon endpoints with authentication - admin management available');",
+              "} else {",
+              "    console.log('\u2139\ufe0f Coupon endpoints - public validation available, admin management requires login');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Validate Coupon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data.code) {",
+                  "        console.log('\u2705 Coupon is valid');",
+                  "        console.log('\ud83c\udf9f\ufe0f Code:', response.data.code);",
+                  "        console.log('\ud83d\udcb0 Discount:', response.data.discount);",
+                  "        console.log('\ud83d\udcb5 Final Amount:', response.data.finalAmount);",
+                  "    }",
+                  "} else {",
+                  "    const response = pm.response.json();",
+                  "    console.log('\u274c Coupon validation failed:', response.message);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"SAVE20\",\n  \"subtotal\": 100.00,\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"taxonomies\": [\"{{taxonomyId}}\"]\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coupons/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coupons",
+                "validate"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Coupons",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Ensure access token is available for admin coupon routes",
+              "// Ensure access token is available for cart routes",
+              "const accessToken = pm.collectionVariables.get('accessToken');",
+              "const refreshToken = pm.collectionVariables.get('refreshToken');",
+              "",
+              "if (!accessToken || accessToken === '') {",
+              "    if (refreshToken && refreshToken !== '') {",
+              "        console.log('No access token found. Attempting to refresh...');",
+              "        ",
+              "        const refreshRequest = {",
+              "            url: pm.collectionVariables.get('baseUrl') + '/auth/refresh',",
+              "            method: 'POST',",
+              "            header: {",
+              "                'Content-Type': 'application/json'",
+              "            },",
+              "            body: {",
+              "                mode: 'raw',",
+              "                raw: JSON.stringify({",
+              "                    refreshToken: refreshToken",
+              "                })",
+              "            }",
+              "        };",
+              "        ",
+              "        pm.sendRequest(refreshRequest, (err, response) => {",
+              "            if (err) {",
+              "                console.log('Error refreshing token:', err);",
+              "            } else if (response.code === 200) {",
+              "                const responseJson = response.json();",
+              "                if (responseJson.success && responseJson.data.accessToken) {",
+              "                    pm.collectionVariables.set('accessToken', responseJson.data.accessToken);",
+              "                    console.log('Access token refreshed successfully');",
+              "                } else {",
+              "                    console.log('Failed to refresh token. Please login again.');",
+              "                }",
+              "            } else {",
+              "                console.log('Failed to refresh token. Status:', response.code);",
+              "            }",
+              "        });",
+              "    } else {",
+              "        console.log('No refresh token available. Please login first.');",
+              "    }",
+              "} else {",
+              "    console.log('Access token is available');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Get All Coupons (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/coupons?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "coupons"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "isActive",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "Filter by active status"
+                },
+                {
+                  "key": "type",
+                  "value": "percent",
+                  "disabled": true,
+                  "description": "Filter by coupon type (flat/percent)"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Coupon (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data._id) {",
+                  "        pm.collectionVariables.set('couponId', response.data._id);",
+                  "        console.log('\u2705 Coupon created successfully. ID saved:', response.data._id);",
+                  "        console.log('\ud83c\udf9f\ufe0f Coupon Code:', response.data.code);",
+                  "    }",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 400) {",
+                  "    const response = pm.response.json();",
+                  "    console.log('\u274c Validation error:', response.message);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"WELCOME10\",\n  \"type\": \"percent\",\n  \"value\": 10,\n  \"minSubtotal\": 50,\n  \"endsAt\": \"2024-12-31T23:59:59.000Z\",\n  \"usageLimit\": 100,\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/coupons",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "coupons"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Product-Specific Coupon (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data._id) {",
+                  "        console.log('\u2705 Product-specific coupon created successfully');",
+                  "        console.log('\ud83c\udf9f\ufe0f Coupon Code:', response.data.code);",
+                  "    }",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"SKINCARE20\",\n  \"type\": \"flat\",\n  \"value\": 20,\n  \"minSubtotal\": 100,\n  \"endsAt\": \"2024-12-31T23:59:59.000Z\",\n  \"appliesTo\": {\n    \"productIds\": [\"{{productId}}\"],\n    \"taxonomyIds\": [\"{{taxonomyId}}\"]\n  },\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/coupons",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "coupons"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Coupon (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token and coupon ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const couponId = pm.collectionVariables.get('couponId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!couponId || couponId === '') {",
+                  "    console.log('\u26a0\ufe0f No coupon ID found. Please create a coupon first or set couponId variable.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Coupon updated successfully');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Coupon not found. Please check the coupon ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 15,\n  \"usageLimit\": 200,\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/coupons/{{couponId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "coupons",
+                "{{couponId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Coupon (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token and coupon ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const couponId = pm.collectionVariables.get('couponId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!couponId || couponId === '') {",
+                  "    console.log('\u26a0\ufe0f No coupon ID found. Please create a coupon first or set couponId variable.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Coupon deleted successfully');",
+                  "    // Clear the coupon ID since it's deleted",
+                  "    pm.collectionVariables.set('couponId', '');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Coupon not found. Please check the coupon ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/coupons/{{couponId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "coupons",
+                "{{couponId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments (Stripe)",
+      "item": [
+        {
+          "name": "Get User Cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data.cart.items && response.data.cart.items.length > 0) {",
+                  "        pm.collectionVariables.set('cartItemId', response.data.cart.items[0]._id);",
+                  "        console.log('\u2705 Cart fetched successfully. First item ID saved:', response.data.cart.items[0]._id);",
+                  "    }",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "Optional - for user-specific features"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"qty\": 2\n    }\n  ],\n  \"couponCode\": \"WELCOME10\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/checkout-session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "checkout-session"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Checkout Session (No Coupon)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.sessionId) {",
+                  "        pm.collectionVariables.set('stripeSessionId', response.sessionId);",
+                  "        console.log('\u2705 Checkout session created without coupon. Session ID:', response.sessionId);",
+                  "        console.log('\ud83d\udd17 Checkout URL:', response.url);",
+                  "    }",
+                  "} else {",
+                  "    console.log('\u274c Failed to create checkout session');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "Optional - for user-specific features"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"qty\": 2\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/checkout-session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "checkout-session"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Stripe Webhook (Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "stripe-signature",
+                "value": "t=1234567890,v1=test_signature_here",
+                "description": "This would be generated by Stripe CLI for testing"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_test_webhook\",\n  \"object\": \"event\",\n  \"api_version\": \"2020-08-27\",\n  \"created\": 1234567890,\n  \"data\": {\n    \"object\": {\n      \"id\": \"cs_test_session_id\",\n      \"object\": \"checkout.session\",\n      \"payment_intent\": \"pi_test_payment_intent\",\n      \"metadata\": {\n        \"orderId\": \"ORDER_ID_HERE\",\n        \"userId\": \"USER_ID_HERE\"\n      }\n    }\n  },\n  \"livemode\": false,\n  \"pending_webhooks\": 1,\n  \"request\": {\n    \"id\": \"req_test_request\",\n    \"idempotency_key\": null\n  },\n  \"type\": \"checkout.session.completed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "webhook"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders (User)",
+      "item": [
+        {
+          "name": "Get My Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Product to Cart",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const productId = pm.collectionVariables.get('productId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!productId || productId === '') {",
+                  "    console.log('\u26a0\ufe0f No product ID found. Please set productId variable or get a product first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data.cart.items && response.data.cart.items.length > 0) {",
+                  "        const addedItem = response.data.cart.items.find(item => item.productId._id === pm.collectionVariables.get('productId'));",
+                  "        if (addedItem) {",
+                  "            pm.collectionVariables.set('cartItemId', addedItem._id);",
+                  "            console.log('\u2705 Product added to cart successfully. Item ID saved:', addedItem._id);",
+                  "        }",
+                  "    }",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Product not found. Please check the product ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"qty\": 2,\n  \"variant\": {\n    \"shade\": \"Natural\",\n    \"skinType\": \"normal\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cart/add",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "add"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Cart Item Quantity",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const cartItemId = pm.collectionVariables.get('cartItemId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!cartItemId || cartItemId === '') {",
+                  "    console.log('\u26a0\ufe0f No cart item ID found. Please add a product to cart first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Cart item quantity updated successfully');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Cart item not found. Please check the item ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qty\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cart/items/{{cartItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "items",
+                "{{cartItemId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Increase Cart Item Quantity",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const cartItemId = pm.collectionVariables.get('cartItemId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!cartItemId || cartItemId === '') {",
+                  "    console.log('\u26a0\ufe0f No cart item ID found. Please add a product to cart first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Cart item quantity increased successfully');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Cart item not found. Please check the item ID.');",
+                  "} else if (pm.response.code === 400) {",
+                  "    const response = pm.response.json();",
+                  "    console.log('\u274c Bad request:', response.message);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cart/items/{{cartItemId}}/increase",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "items",
+                "{{cartItemId}}",
+                "increase"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Decrease Cart Item Quantity",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const cartItemId = pm.collectionVariables.get('cartItemId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!cartItemId || cartItemId === '') {",
+                  "    console.log('\u26a0\ufe0f No cart item ID found. Please add a product to cart first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.message.includes('removed')) {",
+                  "        console.log('\u2705 Item removed from cart (quantity reached 0)');",
+                  "        pm.collectionVariables.set('cartItemId', '');",
+                  "    } else {",
+                  "        console.log('\u2705 Cart item quantity decreased successfully');",
+                  "    }",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Cart item not found. Please check the item ID.');",
+                  "} else if (pm.response.code === 400) {",
+                  "    const response = pm.response.json();",
+                  "    console.log('\u274c Bad request:', response.message);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cart/items/{{cartItemId}}/decrease",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "items",
+                "{{cartItemId}}",
+                "decrease"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove Item from Cart",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const cartItemId = pm.collectionVariables.get('cartItemId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!cartItemId || cartItemId === '') {",
+                  "    console.log('\u26a0\ufe0f No cart item ID found. Please add a product to cart first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Item removed from cart successfully');",
+                  "    pm.collectionVariables.set('cartItemId', '');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Cart item not found. Please check the item ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/items/{{cartItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "items",
+                "{{cartItemId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Cart Total for Checkout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Cart total calculated successfully');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 400) {",
+                  "    console.log('\u274c Cart is empty or has issues.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/total",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "total"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Clear Entire Cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Cart cleared successfully');",
+                  "    pm.collectionVariables.set('cartItemId', '');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Cart not found.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/clear",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "clear"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wishlist (Authenticated)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Ensure access token is available for wishlist routes",
+              "const accessToken = pm.collectionVariables.get('accessToken');",
+              "const refreshToken = pm.collectionVariables.get('refreshToken');",
+              "",
+              "if (!accessToken || accessToken === '') {",
+              "    if (refreshToken && refreshToken !== '') {",
+              "        console.log('No access token found. Attempting to refresh...');",
+              "        ",
+              "        const refreshRequest = {",
+              "            url: pm.collectionVariables.get('baseUrl') + '/auth/refresh',",
+              "            method: 'POST',",
+              "            header: {",
+              "                'Content-Type': 'application/json'",
+              "            },",
+              "            body: {",
+              "                mode: 'raw',",
+              "                raw: JSON.stringify({",
+              "                    refreshToken: refreshToken",
+              "                })",
+              "            }",
+              "        };",
+              "        ",
+              "        pm.sendRequest(refreshRequest, (err, response) => {",
+              "            if (err) {",
+              "                console.log('Error refreshing token:', err);",
+              "            } else if (response.code === 200) {",
+              "                const responseJson = response.json();",
+              "                if (responseJson.success && responseJson.data.accessToken) {",
+              "                    pm.collectionVariables.set('accessToken', responseJson.data.accessToken);",
+              "                    console.log('Access token refreshed successfully');",
+              "                } else {",
+              "                    console.log('Failed to refresh token. Please login again.');",
+              "                }",
+              "            } else {",
+              "                console.log('Failed to refresh token. Status:', response.code);",
+              "            }",
+              "        });",
+              "    } else {",
+              "        console.log('No refresh token available. Please login first.');",
+              "    }",
+              "} else {",
+              "    console.log('Access token is available');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Get User Wishlist",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data.wishlist.items && response.data.wishlist.items.length > 0) {",
+                  "        pm.collectionVariables.set('wishlistItemId', response.data.wishlist.items[0]._id);",
+                  "        console.log('\u2705 Wishlist fetched successfully. First item ID saved:', response.data.wishlist.items[0]._id);",
+                  "    }",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wishlist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wishlist"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Product to Wishlist",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const productId = pm.collectionVariables.get('productId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!productId || productId === '') {",
+                  "    console.log('\u26a0\ufe0f No product ID found. Please set productId variable or get a product first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data.wishlist.items && response.data.wishlist.items.length > 0) {",
+                  "        const addedItem = response.data.wishlist.items.find(item => item.productId._id === pm.collectionVariables.get('productId'));",
+                  "        if (addedItem) {",
+                  "            pm.collectionVariables.set('wishlistItemId', addedItem._id);",
+                  "            console.log('\u2705 Product added to wishlist successfully. Item ID saved:', addedItem._id);",
+                  "        }",
+                  "    }",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Product not found. Please check the product ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"qty\": 1,\n  \"variant\": {\n    \"shade\": \"Natural\",\n    \"skinType\": \"normal\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/wishlist/add",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wishlist",
+                "add"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Wishlist Item Quantity",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const wishlistItemId = pm.collectionVariables.get('wishlistItemId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!wishlistItemId || wishlistItemId === '') {",
+                  "    console.log('\u26a0\ufe0f No wishlist item ID found. Please add a product to wishlist first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Wishlist item quantity updated successfully');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Wishlist item not found. Please check the item ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qty\": 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/wishlist/items/{{wishlistItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wishlist",
+                "items",
+                "{{wishlistItemId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Increase Wishlist Item Quantity",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const wishlistItemId = pm.collectionVariables.get('wishlistItemId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!wishlistItemId || wishlistItemId === '') {",
+                  "    console.log('\u26a0\ufe0f No wishlist item ID found. Please add a product to wishlist first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Wishlist item quantity increased successfully');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Wishlist item not found. Please check the item ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/wishlist/items/{{wishlistItemId}}/increase",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wishlist",
+                "items",
+                "{{wishlistItemId}}",
+                "increase"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Decrease Wishlist Item Quantity",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const wishlistItemId = pm.collectionVariables.get('wishlistItemId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!wishlistItemId || wishlistItemId === '') {",
+                  "    console.log('\u26a0\ufe0f No wishlist item ID found. Please add a product to wishlist first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Wishlist item quantity decreased successfully');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Wishlist item not found. Please check the item ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/wishlist/items/{{wishlistItemId}}/decrease",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wishlist",
+                "items",
+                "{{wishlistItemId}}",
+                "decrease"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Move Product from Wishlist to Cart",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const wishlistItemId = pm.collectionVariables.get('wishlistItemId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!wishlistItemId || wishlistItemId === '') {",
+                  "    console.log('\u26a0\ufe0f No wishlist item ID found. Please add a product to wishlist first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data.cart.items && response.data.cart.items.length > 0) {",
+                  "        const movedItem = response.data.cart.items[response.data.cart.items.length - 1];",
+                  "        pm.collectionVariables.set('cartItemId', movedItem._id);",
+                  "        console.log('\u2705 Product moved to cart successfully. Cart item ID saved:', movedItem._id);",
+                  "    }",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Wishlist item not found. Please check the item ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qty\": 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/wishlist/items/{{wishlistItemId}}/move-to-cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wishlist",
+                "items",
+                "{{wishlistItemId}}",
+                "move-to-cart"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove Product from Wishlist",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const wishlistItemId = pm.collectionVariables.get('wishlistItemId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!wishlistItemId || wishlistItemId === '') {",
+                  "    console.log('\u26a0\ufe0f No wishlist item ID found. Please add a product to wishlist first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Product removed from wishlist successfully');",
+                  "    pm.collectionVariables.set('wishlistItemId', '');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Wishlist item not found. Please check the item ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wishlist/items/{{wishlistItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wishlist",
+                "items",
+                "{{wishlistItemId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Clear Entire Wishlist",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Wishlist cleared successfully');",
+                  "    pm.collectionVariables.set('wishlistItemId', '');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Wishlist not found.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wishlist/clear",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wishlist",
+                "clear"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Products",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Ensure access token is available for admin routes",
+              "const accessToken = pm.collectionVariables.get('accessToken');",
+              "const refreshToken = pm.collectionVariables.get('refreshToken');",
+              "",
+              "if (!accessToken || accessToken === '') {",
+              "    if (refreshToken && refreshToken !== '') {",
+              "        console.log('No access token found. Attempting to refresh...');",
+              "        ",
+              "        const refreshRequest = {",
+              "            url: pm.collectionVariables.get('baseUrl') + '/auth/refresh',",
+              "            method: 'POST',",
+              "            header: {",
+              "                'Content-Type': 'application/json'",
+              "            },",
+              "            body: {",
+              "                mode: 'raw',",
+              "                raw: JSON.stringify({",
+              "                    refreshToken: refreshToken",
+              "                })",
+              "            }",
+              "        };",
+              "        ",
+              "        pm.sendRequest(refreshRequest, (err, response) => {",
+              "            if (err) {",
+              "                console.log('Error refreshing token:', err);",
+              "            } else if (response.code === 200) {",
+              "                const responseJson = response.json();",
+              "                if (responseJson.success && responseJson.data.accessToken) {",
+              "                    pm.collectionVariables.set('accessToken', responseJson.data.accessToken);",
+              "                    console.log('Access token refreshed successfully');",
+              "                } else {",
+              "                    console.log('Failed to refresh token. Please login again.');",
+              "                }",
+              "            } else {",
+              "                console.log('Failed to refresh token. Status:', response.code);",
+              "            }",
+              "        });",
+              "    } else {",
+              "        console.log('No refresh token available. Please login first.');",
+              "    }",
+              "} else {",
+              "    console.log('Access token is available');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Get All Products (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/products?page=1&limit=20&sort=-createdAt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "sort",
+                  "value": "-createdAt"
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "minPrice",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "inStock",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "featured",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "brand",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Products (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/products/search?q=face cream&page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "products",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "face cream",
+                  "description": "Search query (required)"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "sort",
+                  "value": "-createdAt",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by status: active, inactive, all"
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by category ID"
+                },
+                {
+                  "key": "type",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by product type"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Product",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data._id) {",
+                  "        pm.collectionVariables.set('productId', response.data._id);",
+                  "        console.log('\u2705 Product created successfully. ID saved:', response.data._id);",
+                  "    }",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "type",
+                  "value": "single",
+                  "type": "text"
+                },
+                {
+                  "key": "title",
+                  "value": "Premium Face Cream",
+                  "type": "text"
+                },
+                {
+                  "key": "slug",
+                  "value": "premium-face-cream",
+                  "type": "text"
+                },
+                {
+                  "key": "sku",
+                  "value": "PFC001",
+                  "type": "text"
+                },
+                {
+                  "key": "brand",
+                  "value": "Cana Gold",
+                  "type": "text"
+                },
+                {
+                  "key": "shortDescription",
+                  "value": "Luxurious anti-aging face cream",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Our premium face cream is formulated with the finest ingredients to provide deep hydration and anti-aging benefits.",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "89.99",
+                  "type": "text"
+                },
+                {
+                  "key": "compareAtPrice",
+                  "value": "119.99",
+                  "type": "text"
+                },
+                {
+                  "key": "stock",
+                  "value": "50",
+                  "type": "text"
+                },
+                {
+                  "key": "isActive",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "isFeatured",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Product",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token and product ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const productId = pm.collectionVariables.get('productId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!productId || productId === '') {",
+                  "    console.log('\u26a0\ufe0f No product ID found. Please create a product first or set productId variable.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Product updated successfully');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Product not found. Please check the product ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Updated Premium Face Cream",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "79.99",
+                  "type": "text"
+                },
+                {
+                  "key": "stock",
+                  "value": "75",
+                  "type": "text"
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "products",
+                "{{productId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Product",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token and product ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const productId = pm.collectionVariables.get('productId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!productId || productId === '') {",
+                  "    console.log('\u26a0\ufe0f No product ID found. Please create a product first or set productId variable.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Product deleted successfully');",
+                  "    // Clear the product ID since it's deleted",
+                  "    pm.collectionVariables.set('productId', '');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Product not found. Please check the product ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "products",
+                "{{productId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Bulk Upload Products",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "console.log('\ud83d\udccb Bulk Upload Instructions:');",
+                  "console.log('1. Prepare an Excel file (.xlsx or .xls) with product data');",
+                  "console.log('2. Required columns: title, price, stock');",
+                  "console.log('3. Optional columns: type, sku, brand, description, etc.');",
+                  "console.log('4. File size limit: 5MB');",
+                  "console.log('5. See docs/Products-Bulk-Upload-Template.md for details');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data) {",
+                  "        console.log('\u2705 Bulk upload completed successfully');",
+                  "        console.log('\ud83d\udcca Results Summary:');",
+                  "        console.log('- Total processed:', response.data.total);",
+                  "        console.log('- Successful:', response.data.success.length);",
+                  "        console.log('- Failed:', response.data.failed.length);",
+                  "        ",
+                  "        if (response.data.success.length > 0) {",
+                  "            console.log('\u2705 Successfully created products:');",
+                  "            response.data.success.forEach(item => {",
+                  "                console.log(`  Row ${item.row}: ${item.title} (ID: ${item.productId})`);",
+                  "            });",
+                  "        }",
+                  "        ",
+                  "        if (response.data.failed.length > 0) {",
+                  "            console.log('\u274c Failed products:');",
+                  "            response.data.failed.forEach(item => {",
+                  "                console.log(`  Row ${item.row}: ${item.title} - ${item.error}`);",
+                  "            });",
+                  "        }",
+                  "        ",
+                  "        // Save first successful product ID for testing",
+                  "        if (response.data.success.length > 0) {",
+                  "            pm.collectionVariables.set('productId', response.data.success[0].productId);",
+                  "        }",
+                  "    }",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 400) {",
+                  "    const response = pm.response.json();",
+                  "    console.log('\u274c Bad request:', response.message);",
+                  "} else if (pm.response.code === 500) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.error === 'Missing dependency: xlsx') {",
+                  "        console.log('\u274c Server missing xlsx package. Please install: npm install xlsx');",
+                  "    } else {",
+                  "        console.log('\u274c Server error:', response.message);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Excel file (.xlsx or .xls) containing product data with all fields including image URLs. Use docs/products-bulk-upload-template.xlsx as template."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/products/bulk-upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "products",
+                "bulk-upload"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Product Image",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token and product ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const productId = pm.collectionVariables.get('productId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!productId || productId === '') {",
+                  "    console.log('\u26a0\ufe0f No product ID found. Please create a product first or set productId variable.');",
+                  "}",
+                  "",
+                  "console.log('\u26a0\ufe0f Note: Replace \"imageId\" in the URL with the actual image ID from the product.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Product image deleted successfully');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Product or image not found. Please check the IDs.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/products/{{productId}}/images/imageId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "products",
+                "{{productId}}",
+                "images",
+                "imageId"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Taxonomies",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Ensure access token is available for admin taxonomy routes",
+              "const accessToken = pm.collectionVariables.get('accessToken');",
+              "const refreshToken = pm.collectionVariables.get('refreshToken');",
+              "",
+              "if (!accessToken || accessToken === '') {",
+              "    if (refreshToken && refreshToken !== '') {",
+              "        console.log('No access token found. Attempting to refresh...');",
+              "        ",
+              "        const refreshRequest = {",
+              "            url: pm.collectionVariables.get('baseUrl') + '/auth/refresh',",
+              "            method: 'POST',",
+              "            header: {",
+              "                'Content-Type': 'application/json'",
+              "            },",
+              "            body: {",
+              "                mode: 'raw',",
+              "                raw: JSON.stringify({",
+              "                    refreshToken: refreshToken",
+              "                })",
+              "            }",
+              "        };",
+              "        ",
+              "        pm.sendRequest(refreshRequest, (err, response) => {",
+              "            if (err) {",
+              "                console.log('Error refreshing token:', err);",
+              "            } else if (response.code === 200) {",
+              "                const responseJson = response.json();",
+              "                if (responseJson.success && responseJson.data.accessToken) {",
+              "                    pm.collectionVariables.set('accessToken', responseJson.data.accessToken);",
+              "                    console.log('Access token refreshed successfully');",
+              "                } else {",
+              "                    console.log('Failed to refresh token. Please login again.');",
+              "                }",
+              "            } else {",
+              "                console.log('Failed to refresh token. Status:', response.code);",
+              "            }",
+              "        });",
+              "    } else {",
+              "        console.log('No refresh token available. Please login first.');",
+              "    }",
+              "} else {",
+              "    console.log('Access token is available');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Create Taxonomy",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data._id) {",
+                  "        pm.collectionVariables.set('taxonomyId', response.data._id);",
+                  "        console.log('\u2705 Taxonomy created successfully. ID saved:', response.data._id);",
+                  "    }",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Skincare",
+                  "type": "text"
+                },
+                {
+                  "key": "slug",
+                  "value": "skincare",
+                  "type": "text"
+                },
+                {
+                  "key": "type",
+                  "value": "category",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Premium skincare products for all skin types",
+                  "type": "text"
+                },
+                {
+                  "key": "position",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "isActive",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/taxonomies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "taxonomies"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Taxonomy",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token and taxonomy ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const taxonomyId = pm.collectionVariables.get('taxonomyId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!taxonomyId || taxonomyId === '') {",
+                  "    console.log('\u26a0\ufe0f No taxonomy ID found. Please create a taxonomy first or set taxonomyId variable.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Taxonomy updated successfully');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Taxonomy not found. Please check the taxonomy ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Premium Skincare",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Updated description for premium skincare products",
+                  "type": "text"
+                },
+                {
+                  "key": "position",
+                  "value": "2",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/taxonomies/{{taxonomyId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "taxonomies",
+                "{{taxonomyId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Taxonomy",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token and taxonomy ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const taxonomyId = pm.collectionVariables.get('taxonomyId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!taxonomyId || taxonomyId === '') {",
+                  "    console.log('\u26a0\ufe0f No taxonomy ID found. Please create a taxonomy first or set taxonomyId variable.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Taxonomy deleted successfully');",
+                  "    // Clear the taxonomy ID since it's deleted",
+                  "    pm.collectionVariables.set('taxonomyId', '');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Taxonomy not found. Please check the taxonomy ID.');",
+                  "} else if (pm.response.code === 400) {",
+                  "    const response = pm.response.json();",
+                  "    console.log('\u274c Cannot delete taxonomy:', response.message);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/taxonomies/{{taxonomyId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "taxonomies",
+                "{{taxonomyId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments (Stripe)",
+      "item": [
+        {
+          "name": "Create Checkout Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.sessionId) {",
+                  "        pm.collectionVariables.set('stripeSessionId', response.sessionId);",
+                  "        console.log('\u2705 Checkout session created. Session ID:', response.sessionId);",
+                  "        console.log('\ud83d\udd17 Checkout URL:', response.url);",
+                  "    }",
+                  "} else {",
+                  "    console.log('\u274c Failed to create checkout session');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "description": "Optional - for user-specific features"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"qty\": 2\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/checkout-session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "checkout-session"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Stripe Webhook (Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "stripe-signature",
+                "value": "t=1234567890,v1=test_signature_here",
+                "description": "This would be generated by Stripe CLI for testing"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_test_webhook\",\n  \"object\": \"event\",\n  \"api_version\": \"2020-08-27\",\n  \"created\": 1234567890,\n  \"data\": {\n    \"object\": {\n      \"id\": \"cs_test_session_id\",\n      \"object\": \"checkout.session\",\n      \"payment_intent\": \"pi_test_payment_intent\",\n      \"metadata\": {\n        \"orderId\": \"ORDER_ID_HERE\",\n        \"userId\": \"USER_ID_HERE\"\n      }\n    }\n  },\n  \"livemode\": false,\n  \"pending_webhooks\": 1,\n  \"request\": {\n    \"id\": \"req_test_request\",\n    \"idempotency_key\": null\n  },\n  \"type\": \"checkout.session.completed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "webhook"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders (User)",
+      "item": [
+        {
+          "name": "Get My Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Order by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data._id) {",
+                  "        pm.collectionVariables.set('orderId', response.data._id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Changed my mind\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}",
+                "cancel"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Request Return/Refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Product damaged\",\n  \"items\": [\n    {\n      \"product\": \"{{productId}}\",\n      \"quantity\": 1,\n      \"reason\": \"Damaged during shipping\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}/return",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}",
+                "return"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Orders",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Ensure access token is available for admin routes",
+              "const accessToken = pm.collectionVariables.get('accessToken');",
+              "const refreshToken = pm.collectionVariables.get('refreshToken');",
+              "",
+              "if (!accessToken || accessToken === '') {",
+              "    if (refreshToken && refreshToken !== '') {",
+              "        console.log('No access token found. Attempting to refresh...');",
+              "        ",
+              "        const refreshRequest = {",
+              "            url: pm.collectionVariables.get('baseUrl') + '/auth/refresh',",
+              "            method: 'POST',",
+              "            header: {",
+              "                'Content-Type': 'application/json'",
+              "            },",
+              "            body: {",
+              "                mode: 'raw',",
+              "                raw: JSON.stringify({",
+              "                    refreshToken: refreshToken",
+              "                })",
+              "            }",
+              "        };",
+              "        ",
+              "        pm.sendRequest(refreshRequest, (err, response) => {",
+              "            if (err) {",
+              "                console.log('Error refreshing token:', err);",
+              "            } else if (response.code === 200) {",
+              "                const responseJson = response.json();",
+              "                if (responseJson.success && responseJson.data.accessToken) {",
+              "                    pm.collectionVariables.set('accessToken', responseJson.data.accessToken);",
+              "                    console.log('Access token refreshed successfully');",
+              "                } else {",
+              "                    console.log('Failed to refresh token. Please login again.');",
+              "                }",
+              "            } else {",
+              "                console.log('Failed to refresh token. Status:', response.code);",
+              "            }",
+              "        });",
+              "    } else {",
+              "        console.log('No refresh token available. Please login first.');",
+              "    }",
+              "} else {",
+              "    console.log('Access token is available');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Get All Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/admin/orders?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "admin",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "startDate",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "endDate",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "-createdAt",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Orders (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/admin/orders/search?q=john@example.com&page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "admin",
+                "orders",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "john@example.com",
+                  "description": "Search query (required) - email, name, order number, tracking number"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by order status"
+                },
+                {
+                  "key": "startDate",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter orders from this date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "endDate",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter orders until this date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "sort",
+                  "value": "-createdAt",
+                  "disabled": true,
+                  "description": "Sort order"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Order Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/admin/stats?period=30d",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "admin",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "30d",
+                  "description": "7d, 30d, or 90d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Order by ID (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/admin/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "admin",
+                "orders",
+                "{{orderId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Order Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"processing\",\n  \"notes\": \"Order is being prepared\",\n  \"trackingNumber\": \"TRK123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/admin/orders/{{orderId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "admin",
+                "orders",
+                "{{orderId}}",
+                "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Handle Return Request",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"approve\",\n  \"notes\": \"Return approved - product was damaged\",\n  \"refundAmount\": 89.99\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/admin/orders/{{orderId}}/return",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "admin",
+                "orders",
+                "{{orderId}}",
+                "return"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Process Refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 89.99,\n  \"reason\": \"Product return - damaged item\",\n  \"method\": \"stripe\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/admin/orders/{{orderId}}/refund",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "admin",
+                "orders",
+                "{{orderId}}",
+                "refund"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark Order as Failed",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Payment processing failed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/admin/orders/{{orderId}}/failed",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "admin",
+                "orders",
+                "{{orderId}}",
+                "failed"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Blog Posts (Public & Admin)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Mixed routes - some public, some require admin authentication",
+              "const accessToken = pm.collectionVariables.get('accessToken');",
+              "const requestUrl = pm.request.url.toString();",
+              "const isAdminRoute = requestUrl.includes('/blog/') && (pm.request.method !== 'GET' || requestUrl.includes('/admin/'));",
+              "",
+              "if (isAdminRoute) {",
+              "    if (!accessToken || accessToken === '') {",
+              "        console.log('\u26a0\ufe0f Admin route requires authentication. Please login first.');",
+              "    } else {",
+              "        console.log('\u2139\ufe0f Admin blog route - authentication required');",
+              "    }",
+              "} else {",
+              "    console.log('\u2139\ufe0f Public blog route - no authentication required');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Get All Blog Posts (Public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Blog posts response is successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has blog posts structure', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('success', true);",
+                  "    pm.expect(responseJson.data).to.have.property('blogPosts');",
+                  "    pm.expect(responseJson.data).to.have.property('pagination');",
+                  "});",
+                  "",
+                  "pm.test('Blog posts array is present', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.data.blogPosts).to.be.an('array');",
+                  "});",
+                  "",
+                  "if (pm.response.json().data.blogPosts.length > 0) {",
+                  "    pm.test('First blog post has required fields', function () {",
+                  "        const blogPost = pm.response.json().data.blogPosts[0];",
+                  "        pm.expect(blogPost).to.have.property('_id');",
+                  "        pm.expect(blogPost).to.have.property('title');",
+                  "        pm.expect(blogPost).to.have.property('slug');",
+                  "        pm.expect(blogPost).to.have.property('isPublished');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/blog?page=1&limit=10&sort=-publishedAt&published=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "blog"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sort",
+                  "value": "-publishedAt"
+                },
+                {
+                  "key": "published",
+                  "value": "true",
+                  "description": "Filter for published posts only"
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by category"
+                },
+                {
+                  "key": "tags",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by tags (comma-separated)"
+                },
+                {
+                  "key": "author",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by author"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Search in title, excerpt, body, and tags"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Blog Post by Slug (Public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data._id) {",
+                  "        pm.collectionVariables.set('blogPostId', response.data._id);",
+                  "        console.log('\u2705 Blog post fetched successfully. ID saved:', response.data._id);",
+                  "    }",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Blog post not found. Please check the slug.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/blog/slug/sample-blog-post",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "blog",
+                "slug",
+                "sample-blog-post"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Blog Posts (Public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Blog search response is successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has search results structure', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('success', true);",
+                  "    pm.expect(responseJson.data).to.have.property('blogPosts');",
+                  "    pm.expect(responseJson.data).to.have.property('searchQuery');",
+                  "    pm.expect(responseJson.data).to.have.property('filters');",
+                  "    pm.expect(responseJson.data).to.have.property('pagination');",
+                  "});",
+                  "",
+                  "pm.test('Blog posts array is present', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.data.blogPosts).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Search query is returned', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.data.searchQuery).to.be.a('string');",
+                  "});",
+                  "",
+                  "if (pm.response.json().data.blogPosts.length > 0) {",
+                  "    pm.test('First blog post has required fields', function () {",
+                  "        const blogPost = pm.response.json().data.blogPosts[0];",
+                  "        pm.expect(blogPost).to.have.property('_id');",
+                  "        pm.expect(blogPost).to.have.property('title');",
+                  "        pm.expect(blogPost).to.have.property('slug');",
+                  "        pm.expect(blogPost).to.have.property('isPublished');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/blog/search?q=skincare routine&page=1&limit=10&published=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "blog",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "skincare routine",
+                  "description": "Search query (required)"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sort",
+                  "value": "-publishedAt",
+                  "disabled": true
+                },
+                {
+                  "key": "published",
+                  "value": "true",
+                  "description": "Filter for published posts only"
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by category"
+                },
+                {
+                  "key": "tags",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by tags (comma-separated)"
+                },
+                {
+                  "key": "author",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Filter by author"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Blog Post (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token for admin operations",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "    console.log('\ud83d\udca1 Note: This endpoint requires admin role.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data._id) {",
+                  "        pm.collectionVariables.set('blogPostId', response.data._id);",
+                  "        console.log('\u2705 Blog post created successfully. ID saved:', response.data._id);",
+                  "        console.log('\ud83d\udcdd Title:', response.data.title);",
+                  "        console.log('\ud83d\udd17 Slug:', response.data.slug);",
+                  "    }",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 403) {",
+                  "    console.log('\u274c Forbidden. Admin role required for this operation.');",
+                  "} else if (pm.response.code === 400) {",
+                  "    const response = pm.response.json();",
+                  "    console.log('\u274c Validation error:', response.message);",
+                  "    if (response.errors) {",
+                  "        response.errors.forEach(error => {",
+                  "            console.log(`  - ${error.field}: ${error.message}`);",
+                  "        });",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "The Ultimate Guide to Skincare Routines",
+                  "type": "text"
+                },
+                {
+                  "key": "slug",
+                  "value": "ultimate-guide-skincare-routines",
+                  "type": "text",
+                  "description": "Optional - will be auto-generated from title if not provided"
+                },
+                {
+                  "key": "excerpt",
+                  "value": "Discover the perfect skincare routine for your skin type with our comprehensive guide.",
+                  "type": "text"
+                },
+                {
+                  "key": "body",
+                  "value": "<h2>Introduction</h2><p>Taking care of your skin is essential for maintaining a healthy and radiant complexion. In this comprehensive guide, we'll walk you through everything you need to know about creating the perfect skincare routine.</p><h2>Understanding Your Skin Type</h2><p>Before diving into products, it's crucial to understand your skin type...</p><h2>Building Your Routine</h2><p>A good skincare routine should include cleansing, toning, treating, and moisturizing...</p>",
+                  "type": "text"
+                },
+                {
+                  "key": "tags",
+                  "value": "skincare,beauty,routine,tips",
+                  "type": "text",
+                  "description": "Comma-separated tags"
+                },
+                {
+                  "key": "category",
+                  "value": "Skincare Tips",
+                  "type": "text"
+                },
+                {
+                  "key": "author",
+                  "value": "Dr. Sarah Johnson",
+                  "type": "text"
+                },
+                {
+                  "key": "isPublished",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "coverImage",
+                  "type": "file",
+                  "src": [],
+                  "description": "Cover image for the blog post (optional)"
+                },
+                {
+                  "key": "meta[title]",
+                  "value": "Ultimate Skincare Guide | CanaGold Blog",
+                  "type": "text",
+                  "description": "SEO meta title"
+                },
+                {
+                  "key": "meta[description]",
+                  "value": "Learn how to create the perfect skincare routine with our expert tips and product recommendations.",
+                  "type": "text",
+                  "description": "SEO meta description"
+                },
+                {
+                  "key": "meta[keywords]",
+                  "value": "skincare routine,beauty tips,skin care,healthy skin",
+                  "type": "text",
+                  "description": "SEO keywords (comma-separated)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/blog",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "blog"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Blog Post by ID (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token and blog post ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const blogPostId = pm.collectionVariables.get('blogPostId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!blogPostId || blogPostId === '') {",
+                  "    console.log('\u26a0\ufe0f No blog post ID found. Please create a blog post first or set blogPostId variable.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/blog/{{blogPostId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "blog",
+                "{{blogPostId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Blog Post (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token and blog post ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const blogPostId = pm.collectionVariables.get('blogPostId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!blogPostId || blogPostId === '') {",
+                  "    console.log('\u26a0\ufe0f No blog post ID found. Please create a blog post first or set blogPostId variable.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Blog post updated successfully');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 403) {",
+                  "    console.log('\u274c Forbidden. Admin role required for this operation.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Blog post not found. Please check the blog post ID.');",
+                  "} else if (pm.response.code === 400) {",
+                  "    const response = pm.response.json();",
+                  "    console.log('\u274c Validation error:', response.message);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "The Complete Guide to Skincare Routines (Updated)",
+                  "type": "text"
+                },
+                {
+                  "key": "excerpt",
+                  "value": "Updated comprehensive guide to skincare routines with the latest tips and product recommendations.",
+                  "type": "text"
+                },
+                {
+                  "key": "body",
+                  "value": "<h2>Introduction</h2><p>Taking care of your skin is essential for maintaining a healthy and radiant complexion. This updated guide includes the latest research and product recommendations...</p>",
+                  "type": "text"
+                },
+                {
+                  "key": "tags",
+                  "value": "skincare,beauty,routine,tips,updated",
+                  "type": "text"
+                },
+                {
+                  "key": "coverImage",
+                  "type": "file",
+                  "src": [],
+                  "description": "New cover image (optional)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/blog/{{blogPostId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "blog",
+                "{{blogPostId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Publish/Unpublish Blog Post (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token and blog post ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const blogPostId = pm.collectionVariables.get('blogPostId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!blogPostId || blogPostId === '') {",
+                  "    console.log('\u26a0\ufe0f No blog post ID found. Please create a blog post first or set blogPostId variable.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    const status = response.data.isPublished ? 'published' : 'unpublished';",
+                  "    console.log(`\u2705 Blog post ${status} successfully`);",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 403) {",
+                  "    console.log('\u274c Forbidden. Admin role required for this operation.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Blog post not found. Please check the blog post ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isPublished\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/blog/{{blogPostId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "blog",
+                "{{blogPostId}}",
+                "publish"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Blog Post (Admin)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Ensure we have a valid access token and blog post ID",
+                  "const accessToken = pm.collectionVariables.get('accessToken');",
+                  "const blogPostId = pm.collectionVariables.get('blogPostId');",
+                  "",
+                  "if (!accessToken || accessToken === '') {",
+                  "    console.log('\u26a0\ufe0f No access token found. Please run Login User request first.');",
+                  "}",
+                  "",
+                  "if (!blogPostId || blogPostId === '') {",
+                  "    console.log('\u26a0\ufe0f No blog post ID found. Please create a blog post first or set blogPostId variable.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    console.log('\u2705 Blog post deleted successfully');",
+                  "    // Clear the blog post ID since it's deleted",
+                  "    pm.collectionVariables.set('blogPostId', '');",
+                  "} else if (pm.response.code === 401) {",
+                  "    console.log('\u274c Unauthorized. Please check your access token or login again.');",
+                  "} else if (pm.response.code === 403) {",
+                  "    console.log('\u274c Forbidden. Admin role required for this operation.');",
+                  "} else if (pm.response.code === 404) {",
+                  "    console.log('\u274c Blog post not found. Please check the blog post ID.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/blog/{{blogPostId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "blog",
+                "{{blogPostId}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
