@@ -17,8 +17,9 @@ const poppins = Poppins({
 })
 
 export const metadata: Metadata = {
-  title: "Cana Gold Admin Panel",
-  description: "Cana Gold Admin Panel - Manage your business operations",
+  title: "SAFFRAJIT - Pure Certified Premium Saffron & Shilajit",
+  description:
+    "100% Authentic Kashmiri & Iranian Saffron, Lab-tested Himalayan Shilajit. Government certified, direct from source. The power of purity.",
 
   icons: {
     icon: "/logo.png", // Favicon / Logo
